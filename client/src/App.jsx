@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useUserStore } from './stores/userStore'
 import { setAuthUserId } from './api/client'
 import Layout from './components/Layout'
+import ScrollToTop from './components/ScrollToTop'
 import SetupPage from './pages/SetupPage'
 import DashboardPage from './pages/DashboardPage'
 import ChecklistPage from './pages/ChecklistPage'
@@ -38,16 +39,18 @@ function App() {
   }, [user?.id])
 
   return (
-    <Routes>
-      <Route path="/setup" element={<SetupPage />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/setup" element={<SetupPage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="checklist" element={<ChecklistPage />} />
@@ -68,6 +71,7 @@ function App() {
         </Route>
       </Route>
     </Routes>
+    </>
   )
 }
 
