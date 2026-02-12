@@ -198,4 +198,13 @@ if (!hasMentorIdInUsers) {
   db.prepare('ALTER TABLE users ADD COLUMN mentor_id INTEGER REFERENCES contacts(id)').run()
 }
 
+// Add assignment_type to tasks: 'self' | 'mentor' | 'supervisor' (replaces mentor as task assignment concept)
+const taskColsAssignment = db.prepare('PRAGMA table_info(tasks)').all()
+const hasAssignmentType = taskColsAssignment.some((c) => c.name === 'assignment_type')
+if (!hasAssignmentType) {
+  db.prepare("ALTER TABLE tasks ADD COLUMN assignment_type TEXT DEFAULT 'self'").run()
+  db.prepare("UPDATE tasks SET assignment_type = CASE WHEN mentor_id IS NOT NULL THEN 'mentor' ELSE 'self' END").run()
+  db.prepare("UPDATE tasks SET assignment_type = 'self' WHERE assignment_type IS NULL OR assignment_type NOT IN ('self','mentor','supervisor')").run()
+}
+
 export default db

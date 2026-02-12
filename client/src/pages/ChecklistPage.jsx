@@ -236,9 +236,9 @@ export default function ChecklistPage() {
                         {task.time_estimate} мин
                       </span>
                     )}
-                    {task.mentor_name && (
+                    {task.assignment_label && (
                       <span className="text-xs text-gray-500">
-                        С наставником
+                        {task.assignment_label}
                       </span>
                     )}
                   </div>

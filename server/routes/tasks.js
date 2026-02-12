@@ -6,12 +6,14 @@ const router = Router()
 const VALID_CATEGORIES = ['access', 'security', 'processes', 'training', 'practice', 'systems']
 const VALID_PRIORITIES = ['must', 'should', 'nice']
 const VALID_STAGES = ['stage1', 'stage2', 'stage3']
+const VALID_ASSIGNMENT_TYPES = ['self', 'mentor', 'supervisor']
 
-function withMentorName(t) {
-  const { mentor_id, ...rest } = t
-  if (!mentor_id) return { ...rest, mentor_id: null, mentor_name: null }
-  const contact = db.prepare('SELECT name FROM contacts WHERE id = ?').get(mentor_id)
-  return { ...rest, mentor_id, mentor_name: contact?.name ?? null }
+const ASSIGNMENT_LABELS = { mentor: 'С наставником', supervisor: 'С руководителем' }
+
+function formatTask(t) {
+  const assignment_type = VALID_ASSIGNMENT_TYPES.includes(t.assignment_type) ? t.assignment_type : 'self'
+  const assignment_label = ASSIGNMENT_LABELS[assignment_type] ?? null
+  return { ...t, assignment_type, assignment_label }
 }
 
 // Get all tasks with optional filtering
@@ -35,7 +37,7 @@ router.get('/', (req, res) => {
     query += ' ORDER BY priority ASC, id ASC'
 
     const rawTasks = db.prepare(query).all(...params)
-    res.json(rawTasks.map(withMentorName))
+    res.json(rawTasks.map(formatTask))
   } catch (error) {
     console.error('Error getting tasks:', error)
     res.status(500).json({ error: 'Failed to get tasks' })
@@ -45,7 +47,7 @@ router.get('/', (req, res) => {
 // Create task (admin only)
 router.post('/', requireUser, requireAdmin, (req, res) => {
   try {
-    const { title, description, category, priority, time_estimate, stage, mentor_id } = req.body
+    const { title, description, category, priority, time_estimate, stage, assignment_type } = req.body
     if (!title || typeof title !== 'string') {
       return res.status(400).json({ error: 'Title is required' })
     }
@@ -59,10 +61,10 @@ router.post('/', requireUser, requireAdmin, (req, res) => {
       return res.status(400).json({ error: 'Invalid stage' })
     }
     const timeEst = time_estimate != null ? Number(time_estimate) : null
-    const mentorId = mentor_id != null ? Number(mentor_id) : null
+    const at = VALID_ASSIGNMENT_TYPES.includes(assignment_type) ? assignment_type : 'self'
 
     const stmt = db.prepare(`
-      INSERT INTO tasks (title, description, category, priority, time_estimate, stage, mentor_id)
+      INSERT INTO tasks (title, description, category, priority, time_estimate, stage, assignment_type)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
     const result = stmt.run(
@@ -72,10 +74,10 @@ router.post('/', requireUser, requireAdmin, (req, res) => {
       priority || null,
       timeEst,
       stage || 'stage1',
-      mentorId
+      at
     )
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid)
-    res.status(201).json(withMentorName(task))
+    res.status(201).json(formatTask(task))
   } catch (error) {
     console.error('Error creating task:', error)
     res.status(500).json({ error: 'Failed to create task' })
@@ -91,7 +93,7 @@ router.get('/:id', (req, res) => {
       return res.status(404).json({ error: 'Task not found' })
     }
 
-    res.json(withMentorName(task))
+    res.json(formatTask(task))
   } catch (error) {
     console.error('Error getting task:', error)
     res.status(500).json({ error: 'Failed to get task' })
@@ -107,7 +109,7 @@ router.patch('/:id', requireUser, requireAdmin, (req, res) => {
       return res.status(404).json({ error: 'Task not found' })
     }
 
-    const { title, description, category, priority, time_estimate, stage, mentor_id } = req.body
+    const { title, description, category, priority, time_estimate, stage, assignment_type } = req.body
     if (category !== undefined && category !== null && !VALID_CATEGORIES.includes(category)) {
       return res.status(400).json({ error: 'Invalid category' })
     }
@@ -144,16 +146,16 @@ router.patch('/:id', requireUser, requireAdmin, (req, res) => {
       updates.push('stage = ?')
       params.push(stage || null)
     }
-    if (mentor_id !== undefined) {
-      updates.push('mentor_id = ?')
-      params.push(mentor_id != null ? Number(mentor_id) : null)
+    if (assignment_type !== undefined && VALID_ASSIGNMENT_TYPES.includes(assignment_type)) {
+      updates.push('assignment_type = ?')
+      params.push(assignment_type)
     }
     if (updates.length) {
       params.push(id)
       db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...params)
     }
     const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)
-    res.json(withMentorName(updated))
+    res.json(formatTask(updated))
   } catch (error) {
     console.error('Error updating task:', error)
     res.status(500).json({ error: 'Failed to update task' })

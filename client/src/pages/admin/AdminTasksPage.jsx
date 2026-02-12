@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksApi, contactsApi } from '../../api/client'
+import { tasksApi } from '../../api/client'
 import { PencilIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline'
 import StyledSelect from '../../components/StyledSelect'
-import MentorSelect from '../../components/MentorSelect'
 import Modal from '../../components/Modal'
 
 const CATEGORIES = [
@@ -25,6 +24,12 @@ const STAGES = [
   { value: 'stage3', label: 'Этап 3' }
 ]
 
+const ASSIGNMENT_OPTIONS = [
+  { value: 'self', label: 'Самостоятельно' },
+  { value: 'mentor', label: 'С наставником' },
+  { value: 'supervisor', label: 'С руководителем' }
+]
+
 const emptyTask = {
   title: '',
   description: '',
@@ -32,7 +37,7 @@ const emptyTask = {
   priority: 'must',
   time_estimate: '',
   stage: 'stage1',
-  mentor_id: ''
+  assignment_type: 'self'
 }
 
 export default function AdminTasksPage() {
@@ -44,11 +49,6 @@ export default function AdminTasksPage() {
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['admin', 'tasks'],
     queryFn: () => tasksApi.getAll()
-  })
-
-  const { data: contacts = [] } = useQuery({
-    queryKey: ['contacts'],
-    queryFn: () => contactsApi.getAll()
   })
 
   const createMutation = useMutation({
@@ -73,8 +73,6 @@ export default function AdminTasksPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'tasks'] })
   })
 
-  const mentors = contacts.filter(c => c.role && c.role.toLowerCase().includes('наставник'))
-
   const openEdit = (t) => {
     setEditing(t.id)
     setForm({
@@ -84,7 +82,7 @@ export default function AdminTasksPage() {
       priority: t.priority || 'must',
       time_estimate: t.time_estimate ?? '',
       stage: t.stage || 'stage1',
-      mentor_id: t.mentor_id ?? ''
+      assignment_type: t.assignment_type || 'self'
     })
   }
 
@@ -95,7 +93,7 @@ export default function AdminTasksPage() {
     priority: f.priority || null,
     time_estimate: f.time_estimate === '' ? null : Number(f.time_estimate),
     stage: f.stage || 'stage1',
-    mentor_id: f.mentor_id === '' ? null : Number(f.mentor_id)
+    assignment_type: f.assignment_type || 'self'
   })
 
   const submitEdit = (e) => {
@@ -187,12 +185,11 @@ export default function AdminTasksPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Наставник</label>
-            <MentorSelect
-              value={form.mentor_id}
-              onChange={(v) => setForm((f) => ({ ...f, mentor_id: v }))}
-              mentors={mentors}
-              placeholder="Не назначен"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Выполнение</label>
+            <StyledSelect
+              value={form.assignment_type}
+              onChange={(v) => setForm((f) => ({ ...f, assignment_type: v }))}
+              options={ASSIGNMENT_OPTIONS}
             />
           </div>
           <div className="flex gap-2 pt-2">
@@ -270,12 +267,11 @@ export default function AdminTasksPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Наставник</label>
-            <MentorSelect
-              value={form.mentor_id}
-              onChange={(v) => setForm((f) => ({ ...f, mentor_id: v }))}
-              mentors={mentors}
-              placeholder="Не назначен"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Выполнение</label>
+            <StyledSelect
+              value={form.assignment_type}
+              onChange={(v) => setForm((f) => ({ ...f, assignment_type: v }))}
+              options={ASSIGNMENT_OPTIONS}
             />
           </div>
           <div className="flex gap-2 pt-2">
@@ -300,7 +296,7 @@ export default function AdminTasksPage() {
               <th className="py-2 pr-4">Категория</th>
               <th className="py-2 pr-4">Приоритет</th>
               <th className="py-2 pr-4">Этап</th>
-              <th className="py-2 pr-4">Наставник</th>
+              <th className="py-2 pr-4">Выполнение</th>
               <th className="py-2 pr-4">Мин</th>
               <th className="py-2">Действия</th>
             </tr>
@@ -312,7 +308,7 @@ export default function AdminTasksPage() {
                 <td className="py-2 pr-4">{CATEGORIES.find((c) => c.value === t.category)?.label || t.category || '-'}</td>
                 <td className="py-2 pr-4">{PRIORITIES.find((p) => p.value === t.priority)?.label || t.priority || '-'}</td>
                 <td className="py-2 pr-4">{STAGES.find((s) => s.value === t.stage)?.label || t.stage || '-'}</td>
-                <td className="py-2 pr-4">{t.mentor_name || '-'}</td>
+                <td className="py-2 pr-4">{t.assignment_label || '-'}</td>
                 <td className="py-2 pr-4">{t.time_estimate ?? '-'}</td>
                 <td className="py-2 flex gap-1">
                   <button
